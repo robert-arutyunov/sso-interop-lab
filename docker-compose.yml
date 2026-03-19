@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: sso-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloakpass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    container_name: sso-keycloak
+    depends_on:
+      - postgres
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloakpass
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: adminpass
+    ports:
+      - "8080:8080"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  app:
+    build: ./flask-app
+    container_name: sso-app
+    networks:
+      - internal
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    container_name: sso-oauth2-proxy
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      app:
+        condition: service_started
+    ports:
+      - "4180:4180"
+    environment:
+      OAUTH2_PROXY_PROVIDER: keycloak-oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: http://keycloak:8080/realms/sso-lab
+      OAUTH2_PROXY_CLIENT_ID: oidc-demo
+      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: http://localhost:4180/oauth2/callback
+
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET}
+      OAUTH2_PROXY_COOKIE_SECURE: "false"
+
+      OAUTH2_PROXY_UPSTREAMS: http://app:5000
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_LOGIN_URL: http://localhost:8080/realms/sso-lab/protocol/openid-connect/auth
+      OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/realms/sso-lab/protocol/openid-connect/token
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "true"
+      OAUTH2_PROXY_OIDC_JWKS_URL: "http://keycloak:8080/realms/sso-lab/protocol/openid-connect/certs"
+      OAUTH2_PROXY_PROFILE_URL: "http://keycloak:8080/realms/sso-lab/protocol/openid-connect/userinfo"
+      OAUTH2_PROXY_SCOPE: "openid profile email"
+      OAUTH2_PROXY_PREFER_EMAIL_TO_USER: "true"
+      OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL: "true"
+      OAUTH2_PROXY_INSECURE_OIDC_ALLOW_UNVERIFIED_EMAIL: "true"
+      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+      OAUTH2_PROXY_PASS_USER_HEADERS: "true"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      OAUTH2_PROXY_SET_AUTHORIZATION_HEADER: "true"
+
+      # Lab-only: avoids issuer hostname mismatch headaches
+      OAUTH2_PROXY_INSECURE_OIDC_SKIP_ISSUER_VERIFICATION: "true"
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+
+networks:
+  internal:
