@@ -69,18 +69,44 @@ services:
       OAUTH2_PROXY_PROFILE_URL: "http://keycloak:8080/realms/sso-lab/protocol/openid-connect/userinfo"
       OAUTH2_PROXY_SCOPE: "openid profile email"
       OAUTH2_PROXY_PREFER_EMAIL_TO_USER: "true"
-      OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL: "true"
       OAUTH2_PROXY_INSECURE_OIDC_ALLOW_UNVERIFIED_EMAIL: "true"
+      OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL: "true"
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
       OAUTH2_PROXY_PASS_USER_HEADERS: "true"
       OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
       OAUTH2_PROXY_SET_AUTHORIZATION_HEADER: "true"
+      OAUTH2_PROXY_PASS_HOST_HEADER: "true"
+      OAUTH2_PROXY_OIDC_EMAIL_CLAIM: "email"
 
       # Lab-only: avoids issuer hostname mismatch headaches
       OAUTH2_PROXY_INSECURE_OIDC_SKIP_ISSUER_VERIFICATION: "true"
     networks:
       - internal
-
+  
+  saml-proxy:
+    image: itzg/saml-auth-proxy:1.17.6
+    container_name: sso-saml-proxy
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      app:
+        condition: service_started
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    environment:
+      SAML_PROXY_BASE_URL: http://localhost:8082
+      SAML_PROXY_BACKEND_URL: http://app:5000
+      SAML_PROXY_ENTITY_ID: http://localhost:8082/saml/metadata
+      SAML_PROXY_IDP_METADATA_URL: http://keycloak:8080/realms/sso-lab/protocol/saml/descriptor
+      SAML_PROXY_SP_CERT_PATH: /certs/saml-auth-proxy.cert
+      SAML_PROXY_SP_KEY_PATH: /certs/saml-auth-proxy.key
+      SAML_PROXY_ATTRIBUTE_HEADER_MAPPINGS: "email=X-Forwarded-Email"
+      SAML_PROXY_NAME_ID_MAPPING: "X-Forwarded-User"
+    volumes:
+      - ./saml-proxy:/certs:ro
+    networks:
+      - internal
 volumes:
   pgdata:
 
