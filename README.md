@@ -175,18 +175,20 @@ Both routes reach the same Flask app, which displays the identity headers forwar
 
 ```
 Gateway used:              OIDC (oauth2-proxy)
-X-Forwarded-User:          testuser@example.com
-X-Forwarded-Email:         testuser@example.com
-Authorization header:      Yes
+X-Forwarded-Email:          testuser@example.com
+X-Forwarded-User:           testuser@example.com
+X-Forwarded-Host:           Not provided
+Authorization header:       No
 ```
 
 ### Example output — SAML path
 
 ```
 Gateway used:              SAML (saml-auth-proxy)
-X-Forwarded-User:          testuser@example.com
-X-Forwarded-Email:         testuser@example.com
-Authorization header:      No
+X-Forwarded-Email:          testuser@example.com
+X-Forwarded-User:           G-04ce1f57-5dcb-4e77-b67b-02efae634cf0
+X-Forwarded-Host:           localhost:8082
+Authorization header:       No
 ```
 
 ---
