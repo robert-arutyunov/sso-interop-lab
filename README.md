@@ -176,7 +176,7 @@ Both routes reach the same Flask app, which displays the identity headers forwar
 ```
 Gateway used:              OIDC (oauth2-proxy)
 X-Forwarded-User:          testuser@example.com
-X-Forwarded-Email:         Not sent by current proxy config
+X-Forwarded-Email:         testuser@example.com
 Authorization header:      Yes
 ```
 
